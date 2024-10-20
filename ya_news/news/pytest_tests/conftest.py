@@ -3,10 +3,14 @@
 import pytest
 
 from django.conf import settings
-
 from django.test.client import Client
+from django.urls import reverse
 
 from news.models import News, Comment
+
+FORM_DATA = {
+    'text': 'Новый комментарий',
+}
 
 
 @pytest.fixture
@@ -71,23 +75,6 @@ def comment_for_args(comment):
 
 
 @pytest.fixture
-def comment_data(author, news):
-    """Создает комментарий и возвращает его вместе с обновленными данными."""
-    comment = Comment.objects.create(
-        news=news,
-        author=author,
-        text='Текст комментария'
-    )
-    return comment, {'text': 'Новый текст'}
-
-
-@pytest.fixture
-def form_data():
-    """Возвращает словарь с данными формы для создания комментария."""
-    return {'text': 'Новый текст'}
-
-
-@pytest.fixture
 def news_list():
     """Создаёт список новостей."""
     all_news = News.objects.bulk_create(
@@ -95,3 +82,25 @@ def news_list():
         for i in range(settings.NEWS_COUNT_ON_HOME_PAGE)
     )
     return all_news
+
+
+@pytest.fixture
+def urls():
+    login_url = reverse('users:login')
+    urls = {
+        'home': reverse('news:home'),
+        'login': login_url,
+        'logout': reverse('users:logout'),
+        'signup': reverse('users:signup'),
+        'detail':
+        lambda news_for_args: reverse('news:detail', args=news_for_args),
+        'edit':
+        lambda comment_for_args: reverse('news:edit', args=comment_for_args),
+        'delete':
+        lambda comment_for_args: reverse('news:delete', args=comment_for_args),
+        'expected_redirect': lambda url: f"{login_url}?next={url}",
+        'comments':
+        lambda news_for_args:
+        f"{reverse('news:detail', args=news_for_args)}#comments",
+    }
+    return urls

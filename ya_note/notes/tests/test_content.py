@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, Client
 from django.urls import reverse
 
 from notes.models import Note
@@ -8,14 +8,23 @@ from notes.forms import NoteForm
 
 User = get_user_model()
 
+LIST_URL = reverse('notes:list')
+ADD_URL = reverse('notes:add')
+
+
+def edit_url(slug):
+    return reverse('notes:edit', args=(slug,))
+
 
 class TestListNotes(TestCase):
-    LIST_URL = reverse('notes:list')
 
     @classmethod
     def setUpTestData(cls):
         cls.author = User.objects.create(username='Охотина Ксения')
         cls.reader = User.objects.create(username='Читатель')
+
+        cls.author_client = Client()
+        cls.author_client.force_login(cls.author)
 
         Note.objects.bulk_create(
             Note(
@@ -34,18 +43,16 @@ class TestListNotes(TestCase):
         )
         for user, note_in_list in users:
             self.client.force_login(user)
-            response = self.client.get(self.LIST_URL)
+            response = self.client.get(LIST_URL)
             object_list = response.context['object_list']
             self.assertEqual(self.note in object_list, note_in_list)
 
     def test_pages_contains_form(self):
         urls = (
-            ('notes:add', None),
-            ('notes:edit', (self.note.slug,)),
+            (ADD_URL,),
+            (edit_url(self.note.slug),),
         )
-        for name, args in urls:
-            with self.subTest(name=name, args=args):
-                self.client.force_login(self.author)
-                url = reverse(name, args=args)
-                response = self.client.get(url)
+        for url in urls:
+            with self.subTest(url):
+                response = self.author_client.get(url[0])
                 self.assertIsInstance(response.context['form'], NoteForm)

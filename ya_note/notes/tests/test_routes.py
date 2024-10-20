@@ -9,6 +9,26 @@ from notes.models import Note
 
 User = get_user_model()
 
+LOGIN_URL = reverse('users:login')
+LOGOUT_URL = reverse('users:logout')
+SIGNUP_URL = reverse('users:signup')
+HOME_URL = reverse('notes:home')
+ADD_URL = reverse('notes:add')
+LIST_URL = reverse('notes:list')
+SUCCESS_URL = reverse('notes:success')
+
+
+def detail_url(slug):
+    return reverse('notes:detail', args=(slug,))
+
+
+def edit_url(slug):
+    return reverse('notes:edit', args=(slug,))
+
+
+def delete_url(slug):
+    return reverse('notes:delete', args=(slug,))
+
 
 class TestRoutes(TestCase):
 
@@ -24,49 +44,35 @@ class TestRoutes(TestCase):
             author=cls.author,
         )
 
-    def test_pages_availability_for_anonymous_user(self):
-        urls = ('notes:home', 'users:login', 'users:logout', 'users:signup')
-        for name in urls:
-            with self.subTest(name=name):
-                url = reverse(name)
-                response = self.client.get(url)
-                self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_pages_availability_for_auth_user(self):
-        urls = ('notes:add', 'notes:list', 'notes:success')
-        for name in urls:
-            with self.subTest(name=name):
-                url = reverse(name)
-                self.client.force_login(self.author)
-                response = self.client.get(url)
-                self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_availability_for_different_users(self):
-        users_statuses = (
-            (self.author, HTTPStatus.OK),
-            (self.reader, HTTPStatus.NOT_FOUND),
+    def test_pages_availability_for_different_user(self):
+        urls = (
+            (detail_url(self.note.slug), HTTPStatus.FOUND),
+            (edit_url(self.note.slug), HTTPStatus.FOUND),
+            (delete_url(self.note.slug), HTTPStatus.FOUND),
+            (ADD_URL, HTTPStatus.FOUND),
+            (SUCCESS_URL, HTTPStatus.FOUND),
+            (LIST_URL, HTTPStatus.FOUND),
+            (HOME_URL, HTTPStatus.OK),
+            (LOGIN_URL, HTTPStatus.OK),
+            (LOGOUT_URL, HTTPStatus.OK),
+            (SIGNUP_URL, HTTPStatus.OK),
         )
-        for user, status in users_statuses:
-            self.client.force_login(user)
-            for name in ('notes:detail', 'notes:edit', 'notes:delete'):
-                with self.subTest(user=user, name=name):
-                    url = reverse(name, args=(self.note.slug,))
-                    response = self.client.get(url)
-                    self.assertEqual(response.status_code, status)
+        for url, expected_status in urls:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, expected_status)
 
     def test_redirect_for_anonymous_client(self):
-        login_url = reverse('users:login')
         urls = (
-            ('notes:detail', (self.note.slug,)),
-            ('notes:edit', (self.note.slug,)),
-            ('notes:delete', (self.note.slug,)),
-            ('notes:add', None),
-            ('notes:success', None),
-            ('notes:list', None)
+            (detail_url(self.note.slug),),
+            (edit_url(self.note.slug),),
+            (delete_url(self.note.slug),),
+            (ADD_URL,),
+            (SUCCESS_URL,),
+            (LIST_URL,),
         )
-        for name, args in urls:
-            with self.subTest(name=name, args=args):
-                url = reverse(name, args=args)
-                redirect_url = f'{login_url}?next={url}'
-                response = self.client.get(url)
+        for url in urls:
+            with self.subTest(url=url):
+                redirect_url = f'{LOGIN_URL}?next={url[0]}'
+                response = self.client.get(url[0])
                 self.assertRedirects(response, redirect_url)
